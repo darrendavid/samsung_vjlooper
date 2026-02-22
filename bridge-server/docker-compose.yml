@@ -4,16 +4,16 @@ services:
   bridge-server:
     # Use pre-built image from GitHub Container Registry
     # Change YOUR_USERNAME to your GitHub username
-    image: ghcr.io/YOUR_USERNAME/samsung_vjlooper/bridge-server:latest
+    image: ghcr.io/darrendavid/samsung_vjlooper/bridge-server:latest
 
     # Or build locally (comment out image above and uncomment below)
     # build: .
 
     container_name: video-looper-bridge
     ports:
-      - "8080:8080"
+      - "9999:9999"
     environment:
-      - PORT=8080
+      - PORT=9999
       - NODE_ENV=production
     restart: unless-stopped
     networks:
