@@ -1,0 +1,27 @@
+# Tizen Studio
+.tproject
+.sdk_delta.info
+.sign/
+.buildResult/
+*.wgt
+
+# Node.js (if bridge server is included)
+node_modules/
+npm-debug.log
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/

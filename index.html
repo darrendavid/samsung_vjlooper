@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Video Looper</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Video Players for Crossfade -->
+        <video id="video1" class="video-player active" loop></video>
+        <video id="video2" class="video-player" loop></video>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay hidden">
+            <div class="loading-spinner"></div>
+            <p>Loading videos...</p>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings" class="settings-screen hidden">
+            <div class="settings-container">
+                <h1>Video Looper Settings</h1>
+                <div class="settings-content">
+                    <div class="setting-item">
+                        <label>Video Duration (seconds):</label>
+                        <input type="number" id="videoDuration" min="10" max="3600" value="300">
+                    </div>
+                    <div class="setting-item">
+                        <label>Crossfade Duration (seconds):</label>
+                        <input type="number" id="crossfadeDuration" min="1" max="10" value="2">
+                    </div>
+                    <div id="folderList" class="folder-list">
+                        <h2>Network Folders</h2>
+                        <div id="folders"></div>
+                    </div>
+                    <div class="button-group">
+                        <button id="addFolder" class="btn-primary">Add Folder</button>
+                        <button id="saveSettings" class="btn-success">Save & Start</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Folder Modal -->
+        <div id="addFolderModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Add Network Folder</h2>
+                <div class="form-group">
+                    <label>SMB Path:</label>
+                    <input type="text" id="smbPath" placeholder="//192.168.1.100/videos">
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="smbUsername">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="smbPassword">
+                </div>
+                <div class="button-group">
+                    <button id="confirmAddFolder" class="btn-success">Add</button>
+                    <button id="cancelAddFolder" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Overlay -->
+        <div id="info" class="info-overlay hidden">
+            <p id="infoText"></p>
+        </div>
+    </div>
+
+    <!-- Tizen WebAPIs - only available on Samsung TV -->
+    <script>
+        // Check if running on Tizen TV or in browser
+        // The $WEBAPIS path only exists on Samsung TVs
+        (function() {
+            // Try to detect if we're in a browser vs Tizen environment
+            const isBrowser = !window.tizen &&
+                              (typeof navigator !== 'undefined' &&
+                               navigator.userAgent.indexOf('Tizen') === -1);
+
+            if (isBrowser) {
+                // Running in browser - skip Tizen APIs
+                console.log('Running in browser mode (Tizen APIs not available)');
+                window.tizen = null;
+            } else {
+                // Possibly on Tizen TV - try to load APIs
+                const script = document.createElement('script');
+                script.src = '$WEBAPIS/webapis/webapis.js';
+                script.onerror = function() {
+                    console.log('Tizen APIs not found');
+                    window.tizen = null;
+                };
+                document.head.appendChild(script);
+            }
+        })();
+    </script>
+    <script src="js/config.js"></script>
+    <script src="js/smb.js"></script>
+    <script src="js/videoManager.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
