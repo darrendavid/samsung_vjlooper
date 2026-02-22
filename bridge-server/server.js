@@ -6,8 +6,14 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Enable CORS for Samsung TV
-app.use(cors());
+// Enable CORS for all origins (Samsung TV and local testing)
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Range'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length'],
+    credentials: false
+}));
 
 // Store active SMB connections (simple in-memory cache)
 const connections = new Map();
