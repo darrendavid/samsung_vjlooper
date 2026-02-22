@@ -1,54 +1,42 @@
-// SMB Connection Manager
-// Note: Tizen doesn't have native SMB support, so we need to use HTTP/REST API
-// to a bridge server or use DLNA/UPnP for network shares.
-// This implementation assumes you'll set up a simple HTTP server that bridges SMB access.
+// Video Server Manager
+// Connects to a bridge server that serves videos from a mounted directory
 
 const SMBManager = {
-    // Store active connections
-    connections: new Map(),
-
     /**
-     * Connect to an SMB share via HTTP bridge
-     * @param {Object} folderConfig - {id, path, username, password}
+     * Connect to video server
      * @returns {Promise<boolean>}
      */
-    connect: async function(folderConfig) {
+    connect: async function() {
         try {
-            console.log('Connecting to folder:', folderConfig.path);
+            const bridgeUrl = this.getBridgeServerUrl();
+            console.log('Connecting to video server:', bridgeUrl);
 
-            // For Samsung TV, we'll need to use a bridge server
-            // Store the connection info
-            this.connections.set(folderConfig.id, {
-                path: folderConfig.path,
-                username: folderConfig.username,
-                password: folderConfig.password,
-                connected: true
-            });
+            // Test connection with health check
+            const response = await fetch(`${bridgeUrl}/health`);
+            if (!response.ok) {
+                throw new Error('Bridge server health check failed');
+            }
+
+            const health = await response.json();
+            console.log('Bridge server health:', health);
 
             return true;
         } catch (error) {
-            console.error('Error connecting to SMB share:', error);
+            console.error('Error connecting to video server:', error);
             return false;
         }
     },
 
     /**
-     * List video files from an SMB share
-     * @param {string} folderId
+     * List all video files from the server
      * @returns {Promise<Array>}
      */
-    listVideos: async function(folderId) {
-        const connection = this.connections.get(folderId);
-        if (!connection || !connection.connected) {
-            console.error('Not connected to folder:', folderId);
-            throw new Error('Not connected to folder');
-        }
-
+    listVideos: async function() {
         try {
-            // This would need to be implemented based on your bridge server
-            // For now, we'll use a placeholder that supports local HTTP server
-            console.log('Fetching video list from bridge server...');
-            const response = await this.fetchFromBridge(connection, 'list');
+            const bridgeUrl = this.getBridgeServerUrl();
+            console.log('Fetching video list from:', bridgeUrl);
+
+            const response = await fetch(`${bridgeUrl}/list`);
 
             console.log('Bridge response status:', response.status);
 
@@ -68,38 +56,13 @@ const SMBManager = {
 
     /**
      * Get video URL for playback
-     * @param {string} folderId
-     * @param {string} filename
+     * @param {string} filename - relative path from video directory
      * @returns {string}
      */
-    getVideoUrl: function(folderId, filename) {
-        const connection = this.connections.get(folderId);
-        if (!connection) {
-            throw new Error('Connection not found');
-        }
-
-        // Convert SMB path to HTTP bridge URL
-        // Format: http://bridge-server/stream?path=<smb_path>&file=<filename>&user=<username>&pass=<password>
+    getVideoUrl: function(filename) {
         const bridgeUrl = this.getBridgeServerUrl();
-        const encodedPath = encodeURIComponent(connection.path);
         const encodedFile = encodeURIComponent(filename);
-        const encodedUser = encodeURIComponent(connection.username);
-        const encodedPass = encodeURIComponent(connection.password);
-
-        return `${bridgeUrl}/stream?path=${encodedPath}&file=${encodedFile}&user=${encodedUser}&pass=${encodedPass}`;
-    },
-
-    /**
-     * Fetch from bridge server
-     * @private
-     */
-    fetchFromBridge: async function(connection, action) {
-        const bridgeUrl = this.getBridgeServerUrl();
-        const encodedPath = encodeURIComponent(connection.path);
-        const encodedUser = encodeURIComponent(connection.username);
-        const encodedPass = encodeURIComponent(connection.password);
-
-        return fetch(`${bridgeUrl}/${action}?path=${encodedPath}&user=${encodedUser}&pass=${encodedPass}`);
+        return `${bridgeUrl}/stream?file=${encodedFile}`;
     },
 
     /**
@@ -112,26 +75,12 @@ const SMBManager = {
     },
 
     /**
-     * Check if file is a video
+     * Check if file is a video (kept for backward compatibility, server already filters)
      * @private
      */
     isVideoFile: function(filename) {
         const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
         const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
         return videoExtensions.includes(ext);
-    },
-
-    /**
-     * Disconnect from a share
-     */
-    disconnect: function(folderId) {
-        this.connections.delete(folderId);
-    },
-
-    /**
-     * Disconnect all shares
-     */
-    disconnectAll: function() {
-        this.connections.clear();
     }
 };

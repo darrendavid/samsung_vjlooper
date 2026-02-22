@@ -24,44 +24,23 @@
                 <h1>Video Looper Settings</h1>
                 <div class="settings-content">
                     <div class="setting-item">
+                        <label>Bridge Server URL:</label>
+                        <input type="text" id="bridgeServerUrl" placeholder="http://192.168.1.100:9999" value="http://localhost:3000">
+                        <small>URL of the video bridge server</small>
+                    </div>
+                    <div class="setting-item">
                         <label>Video Duration (seconds):</label>
                         <input type="number" id="videoDuration" min="10" max="3600" value="300">
+                        <small>How long to show each video</small>
                     </div>
                     <div class="setting-item">
                         <label>Crossfade Duration (seconds):</label>
                         <input type="number" id="crossfadeDuration" min="1" max="10" value="2">
-                    </div>
-                    <div id="folderList" class="folder-list">
-                        <h2>Network Folders</h2>
-                        <div id="folders"></div>
+                        <small>Transition duration between videos</small>
                     </div>
                     <div class="button-group">
-                        <button id="addFolder" class="btn-primary">Add Folder</button>
                         <button id="saveSettings" class="btn-success">Save & Start</button>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Add Folder Modal -->
-        <div id="addFolderModal" class="modal hidden">
-            <div class="modal-content">
-                <h2>Add Network Folder</h2>
-                <div class="form-group">
-                    <label>SMB Path:</label>
-                    <input type="text" id="smbPath" placeholder="//192.168.1.100/videos">
-                </div>
-                <div class="form-group">
-                    <label>Username:</label>
-                    <input type="text" id="smbUsername">
-                </div>
-                <div class="form-group">
-                    <label>Password:</label>
-                    <input type="password" id="smbPassword">
-                </div>
-                <div class="button-group">
-                    <button id="confirmAddFolder" class="btn-success">Add</button>
-                    <button id="cancelAddFolder" class="btn-secondary">Cancel</button>
                 </div>
             </div>
         </div>

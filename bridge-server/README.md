@@ -1,246 +1,253 @@
-# Video Looper Bridge Server
+# Video Looper Bridge Server v2.0
 
-This Node.js server acts as a bridge between the Samsung TV app and SMB/CIFS network shares, since Tizen doesn't have native SMB support.
+A simple HTTP server that serves video files from a mounted directory to the Samsung TV Video Looper app.
 
 ## Features
 
-- Lists video files from SMB shares
-- Streams videos to the TV with range request support (for seeking)
-- Handles authentication for SMB shares
-- CORS enabled for cross-origin requests from the TV
+- **Simple Setup**: Just mount a directory with your videos
+- **No SMB Complexity**: Serves files directly from the filesystem
+- **CORS Enabled**: Works with browser-based testing
+- **Range Requests**: Supports video seeking
+- **Recursive Discovery**: Finds videos in all subdirectories
+- **Docker Ready**: Easy deployment with Docker Compose
 
-## Installation
+## Quick Start
 
-```bash
-npm install
-```
+### Option 1: Docker Compose (Recommended)
+
+1. **Edit docker-compose.yml** to point to your video directory:
+   ```yaml
+   volumes:
+     - /path/to/your/videos:/videos:ro
+   ```
+
+2. **Start the server**:
+   ```bash
+   docker-compose up -d --build
+   ```
+
+3. **Check it's running**:
+   ```bash
+   curl http://localhost:9999/health
+   ```
+
+### Option 2: Run Locally
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set video directory** (optional, defaults to `/videos`):
+   ```bash
+   export VIDEO_DIR=/path/to/your/videos
+   export PORT=9999
+   ```
+
+3. **Start the server**:
+   ```bash
+   npm start
+   ```
 
 ## Configuration
 
-The server listens on port 8080 by default. Change this by setting the `PORT` environment variable:
+### Environment Variables
 
-```bash
-PORT=3000 npm start
-```
+- `PORT` - Server port (default: 8080)
+- `VIDEO_DIR` - Directory containing video files (default: /videos)
+- `NODE_ENV` - Environment (production/development)
 
-## Running
+### Docker Compose Volume Mounting
 
-### Option 1: Docker (Recommended)
-
-The easiest way to run the bridge server is using Docker.
-
-#### Using Pre-built Image (Easiest)
-
-Pre-built images are automatically published to GitHub Container Registry on every commit:
-
-1. **Update docker-compose.yml** with your GitHub username:
-   ```yaml
-   image: ghcr.io/YOUR_USERNAME/samsung_vjlooper/bridge-server:latest
-   ```
-
-2. **Pull and run:**
-   ```bash
-   docker-compose pull
-   docker-compose up -d
-   ```
-
-3. **View logs:**
-   ```bash
-   docker-compose logs -f
-   ```
-
-4. **Stop:**
-   ```bash
-   docker-compose down
-   ```
-
-Available tags:
-- `latest` - Latest build from main branch
-- `main` - Latest build from main branch
-- `sha-XXXXXXX` - Specific commit
-- `v1.0.0` - Specific version (when tagged)
-
-#### Building Locally
-
-If you want to build the image yourself:
-
-1. **Update docker-compose.yml** to use local build:
-   ```yaml
-   # Comment out the image line and uncomment:
-   build: .
-   ```
-
-2. **Build and start:**
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **View logs:**
-   ```bash
-   docker-compose logs -f
-   ```
-
-4. **Stop:**
-   ```bash
-   docker-compose down
-   ```
-
-Or build and run manually:
-
-```bash
-# Build the image
-docker build -t video-looper-bridge .
-
-# Run the container
-docker run -d \
-  --name video-looper-bridge \
-  -p 8080:8080 \
-  --restart unless-stopped \
-  video-looper-bridge
-
-# View logs
-docker logs -f video-looper-bridge
-
-# Stop the container
-docker stop video-looper-bridge
-```
-
-**For SMB access on host network:**
-
-If your SMB shares are on the same network as the Docker host, you may need to use host networking:
-
-```bash
-docker run -d \
-  --name video-looper-bridge \
-  --network host \
-  --restart unless-stopped \
-  video-looper-bridge
-```
-
-Or update `docker-compose.yml`:
+The docker-compose.yml file mounts a directory as `/videos` inside the container:
 
 ```yaml
-services:
-  bridge-server:
-    network_mode: host
+volumes:
+  - ./videos:/videos:ro  # Change ./videos to your actual path
 ```
 
-### Option 2: Node.js Directly
+Examples:
+- Local directory: `./videos:/videos:ro`
+- Absolute path: `/mnt/media/videos:/videos:ro`
+- Windows path: `C:/Videos:/videos:ro`
+- Network mount: `/mnt/nas/videos:/videos:ro`
 
-#### Development
-```bash
-npm run dev
-```
-
-#### Production
-```bash
-npm start
-```
-
-Or use PM2 for process management:
-```bash
-npm install -g pm2
-pm2 start server.js --name video-looper-bridge
-pm2 save
-pm2 startup
-```
+The `:ro` flag mounts the directory as read-only for security.
 
 ## API Endpoints
 
-### List Videos
-```
-GET /list?path=//192.168.1.100/videos&user=myuser&pass=mypass
-```
+### GET /
 
-Response:
+Server information and available endpoints.
+
+**Response**:
 ```json
 {
-  "files": ["video1.mp4", "video2.mkv", "video3.avi"]
+  "name": "Video Looper Bridge Server",
+  "version": "2.0.0",
+  "description": "Serves video files from a mounted directory",
+  "videoDir": "/videos",
+  "endpoints": {
+    "list": "/list - Get all video files",
+    "stream": "/stream?file=path/to/video.mp4 - Stream a video file",
+    "health": "/health - Health check"
+  }
 }
 ```
 
-### Stream Video
-```
-GET /stream?path=//192.168.1.100/videos&file=video1.mp4&user=myuser&pass=mypass
+### GET /list
+
+Lists all video files found in the video directory and subdirectories.
+
+**Response**:
+```json
+{
+  "files": [
+    "video1.mp4",
+    "subfolder/video2.mp4",
+    "another/deep/folder/video3.mkv"
+  ]
+}
 ```
 
-Streams the video file with support for HTTP range requests (seeking).
+### GET /stream?file={filename}
 
-### Health Check
+Streams a video file. Supports HTTP range requests for seeking.
+
+**Parameters**:
+- `file` - Relative path from VIDEO_DIR (e.g., `subfolder/video.mp4`)
+
+**Example**:
 ```
-GET /health
+GET /stream?file=beeple/EYE%20OF%20THE%20STORM.mp4
 ```
 
-Response:
+### GET /health
+
+Health check endpoint.
+
+**Response**:
 ```json
 {
   "status": "ok",
-  "connections": 2,
-  "timestamp": "2024-01-01T12:00:00.000Z"
+  "videoDir": "/videos",
+  "dirExists": true,
+  "timestamp": "2026-02-22T05:35:32.704Z"
 }
 ```
 
+## Supported Video Formats
+
+- `.mp4`
+- `.mkv`
+- `.avi`
+- `.mov`
+- `.wmv`
+- `.flv`
+- `.webm`
+- `.m4v`
+
 ## Usage with Samsung TV App
 
-1. Start this server on a machine that can access your SMB shares
-2. Note the server's IP address and port
-3. On the Samsung TV, configure the bridge server URL:
-   - Open browser console (if available)
-   - Run: `localStorage.setItem('bridgeServerUrl', 'http://YOUR_SERVER_IP:8080')`
-   - Or modify the default in `js/smb.js`
+1. **Configure bridge server URL** in the app settings or browser console:
+   ```javascript
+   localStorage.setItem('bridgeServerUrl', 'http://your-server-ip:9999');
+   ```
 
-4. Add your SMB folders in the TV app settings using the format:
-   - Path: `//192.168.1.100/videos`
-   - Username: Your SMB username
-   - Password: Your SMB password
+2. **The app will automatically**:
+   - Connect to the server on startup
+   - List all available videos
+   - Play them in random order with crossfades
 
-## Security Considerations
+## Docker Deployment
 
-**WARNING**: This server transmits SMB credentials via URL parameters. Only use on trusted networks!
+### Build and Run
 
-For production use, consider:
-- Using HTTPS with valid certificates
-- Implementing token-based authentication
-- Moving credentials to request headers
-- Adding rate limiting
-- Implementing request validation
+```bash
+# Build the image
+docker-compose build
 
-## Network Requirements
+# Start the server
+docker-compose up -d
 
-- Server must be accessible from the Samsung TV
-- Server must have access to SMB shares
-- Firewall must allow:
-  - Incoming connections on the bridge server port (default 8080)
-  - Outgoing SMB connections (port 445)
+# View logs
+docker-compose logs -f
+
+# Stop the server
+docker-compose down
+```
+
+### Check Container Status
+
+```bash
+# List containers
+docker-compose ps
+
+# Check health
+docker-compose exec bridge-server wget -qO- http://localhost:9999/health
+```
+
+### Mount a Network Share
+
+If your videos are on a network share (SMB/NFS), mount it first, then point Docker to the mount:
+
+**Linux/Mac**:
+```bash
+# Mount SMB share
+sudo mount -t cifs //server/share /mnt/videos -o username=user,password=pass
+
+# Update docker-compose.yml
+volumes:
+  - /mnt/videos:/videos:ro
+```
+
+**Windows (WSL2)**:
+```powershell
+# Mount as network drive (Z:)
+net use Z: \\server\share /user:username password
+
+# Update docker-compose.yml
+volumes:
+  - /mnt/z:/videos:ro
+```
 
 ## Troubleshooting
 
-### Videos won't list
-- Verify SMB credentials are correct
-- Check that the SMB share path is accessible from the server
-- Ensure the share name doesn't contain special characters
-- Check server logs for errors
+### No videos found
 
-### Streaming issues
-- Verify the server has sufficient bandwidth
-- Check that video files are in supported formats
-- Ensure no firewall is blocking connections
-- Monitor server logs during playback
+**Check**:
+1. Video directory exists: `docker-compose exec bridge-server ls -la /videos`
+2. Videos are readable: `docker-compose exec bridge-server find /videos -name "*.mp4"`
+3. Check health endpoint: `curl http://localhost:9999/health`
 
-### Connection errors
-- Verify the TV can reach the server IP
-- Check that the port is not blocked by firewall
-- Ensure the server is running (`GET /health`)
+### CORS errors
 
-## Alternative: DLNA Server
+The server has CORS enabled by default (`origin: *`). If you still see errors:
+1. Check the browser console for the actual error
+2. Verify the server is reachable: `curl -i http://server-ip:9999/health`
+3. Check firewall rules
 
-Instead of using this bridge server, you can set up a DLNA/UPnP media server (Plex, Jellyfin, Universal Media Server) and modify the TV app to use DLNA discovery and playback.
+### Permission errors
 
-## Dependencies
+If running as non-root user (recommended), ensure the video directory is readable:
+```bash
+chmod -R +r /path/to/videos
+```
 
-- **express**: Web server framework
-- **cors**: CORS middleware
-- **@marsaud/smb2**: SMB2 client for Node.js
+### Port already in use
+
+Change the port in docker-compose.yml:
+```yaml
+ports:
+  - "8080:9999"  # Host port 8080, container port 9999
+```
+
+## Security Notes
+
+- The server binds to `0.0.0.0` (all interfaces) for TV access
+- Videos are mounted read-only (`:ro`)
+- Path traversal protection prevents accessing files outside VIDEO_DIR
+- No authentication (use firewall rules or reverse proxy for access control)
 
 ## License
 

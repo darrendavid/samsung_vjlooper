@@ -5,43 +5,33 @@ const VideoManager = {
     playHistory: [],
 
     /**
-     * Initialize and load videos from all configured folders
+     * Initialize and load videos from the bridge server
      * @returns {Promise<boolean>}
      */
     initialize: async function() {
-        const config = ConfigManager.load();
+        try {
+            // Connect to bridge server
+            const connected = await SMBManager.connect();
+            if (!connected) {
+                console.error('Failed to connect to video server');
+                return false;
+            }
 
-        if (!config.folders || config.folders.length === 0) {
-            console.warn('No folders configured');
+            // Get all videos from server
+            const videos = await SMBManager.listVideos();
+
+            // Store videos with filename (relative path)
+            this.videoList = videos.map(video => ({
+                filename: video  // This is the relative path from VIDEO_DIR
+            }));
+
+            console.log(`Total videos loaded: ${this.videoList.length}`);
+            return this.videoList.length > 0;
+
+        } catch (error) {
+            console.error('Error loading videos:', error);
             return false;
         }
-
-        // Connect to all folders and gather video lists
-        this.videoList = [];
-
-        for (const folder of config.folders) {
-            try {
-                const connected = await SMBManager.connect(folder);
-                if (connected) {
-                    const videos = await SMBManager.listVideos(folder.id);
-
-                    // Add folder reference to each video
-                    const videosWithFolder = videos.map(video => ({
-                        filename: video,
-                        folderId: folder.id,
-                        folderPath: folder.path
-                    }));
-
-                    this.videoList.push(...videosWithFolder);
-                    console.log(`Loaded ${videos.length} videos from ${folder.path}`);
-                }
-            } catch (error) {
-                console.error(`Error loading videos from folder ${folder.path}:`, error);
-            }
-        }
-
-        console.log(`Total videos loaded: ${this.videoList.length}`);
-        return this.videoList.length > 0;
     },
 
     /**
@@ -137,7 +127,8 @@ const VideoManager = {
         if (!video) {
             return null;
         }
-        return SMBManager.getVideoUrl(video.folderId, video.filename);
+        // video.filename is the relative path from the video directory
+        return SMBManager.getVideoUrl(video.filename);
     },
 
     /**

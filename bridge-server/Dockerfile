@@ -1,10 +1,5 @@
 FROM node:18-alpine
 
-# Install required packages for SMB support
-RUN apk add --no-cache \
-    samba-client \
-    cifs-utils
-
 # Create app directory
 WORKDIR /app
 
@@ -16,6 +11,9 @@ RUN npm ci --only=production
 
 # Copy application code
 COPY server.js ./
+
+# Create videos directory
+RUN mkdir -p /videos && chown node:node /videos
 
 # Expose the server port
 EXPOSE 8080
