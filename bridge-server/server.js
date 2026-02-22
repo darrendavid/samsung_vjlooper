@@ -19,22 +19,34 @@ app.use(cors({
 const connections = new Map();
 
 /**
+ * Parse SMB path into components
+ * Supports: //server/share/path/to/folder
+ * Returns: { server, share, subPath }
+ */
+function parseSMBPath(smbPath) {
+    // Parse SMB path: //server/share/optional/sub/path
+    const match = smbPath.match(/^\/\/([^\/]+)\/([^\/]+)(?:\/(.*))?$/);
+    if (!match) {
+        throw new Error('Invalid SMB path format. Expected: //server/share or //server/share/path');
+    }
+
+    const [, server, share, subPath] = match;
+    return {
+        server,
+        share,
+        subPath: subPath || ''
+    };
+}
+
+/**
  * Get or create SMB connection
  */
-function getSMBConnection(smbPath, username, password) {
-    const key = `${smbPath}:${username}`;
+function getSMBConnection(server, share, username, password) {
+    const key = `${server}/${share}:${username}`;
 
     if (connections.has(key)) {
         return connections.get(key);
     }
-
-    // Parse SMB path: //server/share
-    const match = smbPath.match(/^\/\/([^\/]+)\/(.+)$/);
-    if (!match) {
-        throw new Error('Invalid SMB path format. Expected: //server/share');
-    }
-
-    const [, server, share] = match;
 
     const smb2Client = new SMB2({
         share: `\\\\${server}\\${share}`,
@@ -49,7 +61,7 @@ function getSMBConnection(smbPath, username, password) {
 
 /**
  * List files endpoint
- * GET /list?path=//server/share&user=username&pass=password
+ * GET /list?path=//server/share/path/to/folder&user=username&pass=password
  */
 app.get('/list', async (req, res) => {
     try {
@@ -61,10 +73,15 @@ app.get('/list', async (req, res) => {
 
         console.log(`Listing files from: ${smbPath}`);
 
-        const smb2Client = getSMBConnection(smbPath, user, pass);
+        const { server, share, subPath } = parseSMBPath(smbPath);
+        const smb2Client = getSMBConnection(server, share, user, pass);
 
-        // List files in the root of the share
-        smb2Client.readdir('', (err, files) => {
+        console.log(`  Server: ${server}`);
+        console.log(`  Share: ${share}`);
+        console.log(`  SubPath: ${subPath || '(root)'}`);
+
+        // List files in the specified directory
+        smb2Client.readdir(subPath, (err, files) => {
             if (err) {
                 console.error('Error listing files:', err);
                 return res.status(500).json({
@@ -98,7 +115,7 @@ app.get('/list', async (req, res) => {
 
 /**
  * Stream video endpoint
- * GET /stream?path=//server/share&file=video.mp4&user=username&pass=password
+ * GET /stream?path=//server/share/path/to/folder&file=video.mp4&user=username&pass=password
  */
 app.get('/stream', async (req, res) => {
     try {
@@ -110,10 +127,15 @@ app.get('/stream', async (req, res) => {
 
         console.log(`Streaming: ${file} from ${smbPath}`);
 
-        const smb2Client = getSMBConnection(smbPath, user, pass);
+        const { server, share, subPath } = parseSMBPath(smbPath);
+        const smb2Client = getSMBConnection(server, share, user, pass);
+
+        // Construct full file path including subdirectory
+        const filePath = subPath ? `${subPath}/${file}` : file;
+        console.log(`  Full file path: ${filePath}`);
 
         // Get file stats for Content-Length
-        smb2Client.stat(file, (err, stats) => {
+        smb2Client.stat(filePath, (err, stats) => {
             if (err) {
                 console.error('Error getting file stats:', err);
                 return res.status(404).json({
@@ -140,7 +162,7 @@ app.get('/stream', async (req, res) => {
                 });
 
                 // Read file with range
-                const stream = smb2Client.createReadStream(file, {
+                const stream = smb2Client.createReadStream(filePath, {
                     start: start,
                     end: end
                 });
@@ -160,7 +182,7 @@ app.get('/stream', async (req, res) => {
                     'Accept-Ranges': 'bytes'
                 });
 
-                const stream = smb2Client.createReadStream(file);
+                const stream = smb2Client.createReadStream(filePath);
                 stream.pipe(res);
 
                 stream.on('error', (err) => {
