@@ -204,132 +204,35 @@ const App = {
      */
     loadSettingsUI: function() {
         const config = ConfigManager.load();
+        const bridgeUrl = localStorage.getItem('bridgeServerUrl') || 'http://localhost:3000';
 
+        document.getElementById('bridgeServerUrl').value = bridgeUrl;
         document.getElementById('videoDuration').value = config.videoDuration;
         document.getElementById('crossfadeDuration').value = config.crossfadeDuration;
-
-        // Load folders
-        this.renderFolders(config.folders);
-    },
-
-    /**
-     * Render folder list
-     */
-    renderFolders: function(folders) {
-        const foldersContainer = document.getElementById('folders');
-
-        if (!folders || folders.length === 0) {
-            foldersContainer.innerHTML = '<p style="color: #888; padding: 20px;">No folders configured</p>';
-            return;
-        }
-
-        foldersContainer.innerHTML = folders.map(folder => `
-            <div class="folder-item" data-folder-id="${folder.id}">
-                <span>${folder.path}</span>
-                <button class="btn-danger remove-folder" data-folder-id="${folder.id}">Remove</button>
-            </div>
-        `).join('');
-
-        // Add remove button listeners
-        foldersContainer.querySelectorAll('.remove-folder').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const folderId = e.target.dataset.folderId;
-                this.removeFolder(folderId);
-            });
-        });
     },
 
     /**
      * Set up settings screen event listeners
      */
     setupSettingsListeners: function() {
-        // Add folder button
-        document.getElementById('addFolder').onclick = () => {
-            this.showAddFolderModal();
-        };
-
         // Save settings button
         document.getElementById('saveSettings').onclick = () => {
             this.saveSettings();
         };
-
-        // Add folder modal buttons
-        document.getElementById('confirmAddFolder').onclick = () => {
-            this.addFolder();
-        };
-
-        document.getElementById('cancelAddFolder').onclick = () => {
-            this.hideAddFolderModal();
-        };
-    },
-
-    /**
-     * Show add folder modal
-     */
-    showAddFolderModal: function() {
-        const modal = document.getElementById('addFolderModal');
-        modal.classList.remove('hidden');
-
-        // Clear inputs
-        document.getElementById('smbPath').value = '';
-        document.getElementById('smbUsername').value = '';
-        document.getElementById('smbPassword').value = '';
-
-        // Focus on first input
-        document.getElementById('smbPath').focus();
-    },
-
-    /**
-     * Hide add folder modal
-     */
-    hideAddFolderModal: function() {
-        const modal = document.getElementById('addFolderModal');
-        modal.classList.add('hidden');
-    },
-
-    /**
-     * Add a new folder
-     */
-    addFolder: function() {
-        const path = document.getElementById('smbPath').value.trim();
-        const username = document.getElementById('smbUsername').value.trim();
-        const password = document.getElementById('smbPassword').value;
-
-        if (!path) {
-            alert('Please enter an SMB path');
-            return;
-        }
-
-        const success = ConfigManager.addFolder({
-            path: path,
-            username: username,
-            password: password
-        });
-
-        if (success) {
-            this.hideAddFolderModal();
-            this.loadSettingsUI();
-        } else {
-            alert('Error adding folder');
-        }
-    },
-
-    /**
-     * Remove a folder
-     */
-    removeFolder: function(folderId) {
-        if (confirm('Remove this folder?')) {
-            ConfigManager.removeFolder(folderId);
-            this.loadSettingsUI();
-        }
     },
 
     /**
      * Save settings and start app
      */
     saveSettings: function() {
+        const bridgeUrl = document.getElementById('bridgeServerUrl').value.trim();
         const videoDuration = parseInt(document.getElementById('videoDuration').value);
         const crossfadeDuration = parseInt(document.getElementById('crossfadeDuration').value);
+
+        if (!bridgeUrl) {
+            alert('Please enter a bridge server URL');
+            return;
+        }
 
         if (videoDuration < 10 || videoDuration > 3600) {
             alert('Video duration must be between 10 and 3600 seconds');
@@ -341,16 +244,14 @@ const App = {
             return;
         }
 
+        // Save bridge server URL
+        localStorage.setItem('bridgeServerUrl', bridgeUrl);
+
+        // Save other settings
         ConfigManager.updateSettings({
             videoDuration: videoDuration,
             crossfadeDuration: crossfadeDuration
         });
-
-        const config = ConfigManager.load();
-        if (!config.folders || config.folders.length === 0) {
-            alert('Please add at least one folder');
-            return;
-        }
 
         this.hideSettings();
         this.startApp();

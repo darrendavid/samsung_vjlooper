@@ -104,12 +104,13 @@ body {
 .setting-item {
     margin-bottom: 25px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .setting-item label {
     font-size: 28px;
-    flex: 1;
+    margin-bottom: 8px;
 }
 
 .setting-item input {
@@ -119,7 +120,14 @@ body {
     border: 2px solid #555;
     color: white;
     border-radius: 5px;
-    width: 200px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.setting-item small {
+    font-size: 20px;
+    color: #999;
+    margin-top: 5px;
 }
 
 .folder-list {
